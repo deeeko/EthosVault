@@ -1,0 +1,542 @@
+@import '@rainbow-me/rainbowkit/styles.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --gold: #D4AF37;
+    --gold-dark: #B8941F;
+    --dark-bg: #0A0A0A;
+    --dark-card: #111111;
+    --dark-border: #1E1E1E;
+    --dark-text: #E5E5E5;
+    --dark-muted: #666666;
+    
+    --ethos-untrusted: #EF4444;
+    --ethos-questionable: #F59E0B;
+    --ethos-neutral: #6B7280;
+    --ethos-reputable: #3B82F6;
+    --ethos-exemplary: #10B981;
+    --ethos-revered: #8B5CF6;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-gold via-gold-dark to-gold bg-clip-text text-transparent;
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-gold to-gold-dark text-dark-bg font-semibold rounded-lg
+           hover:shadow-lg hover:shadow-gold/20 transition-all duration-200
+           active:scale-95 inline-flex items-center justify-center gap-2;
+    min-height: 44px;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-dark-card border border-dark-border text-dark-text font-semibold rounded-lg
+           hover:border-gold/50 hover:text-gold transition-all duration-200
+           active:scale-95 inline-flex items-center justify-center gap-2;
+    min-height: 44px;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+::selection {
+  background-color: var(--gold);
+  color: var(--dark-bg);
+}
+
+::-moz-selection {
+  background-color: var(--gold);
+  color: var(--dark-bg);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--dark-card);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dark-border);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+[data-rk] {
+  --rk-colors-accentColor: #D4AF37;
+  --rk-colors-accentColorForeground: #0A0A0A;
+  --rk-colors-modalBackground: #111111;
+  --rk-colors-modalBackdrop: rgba(0, 0, 0, 0.8);
+  --rk-colors-modalBorder: #1E1E1E;
+  --rk-colors-modalText: #E5E5E5;
+  --rk-colors-modalTextDim: #666666;
+  --rk-colors-modalTextSecondary: #999999;
+  --rk-colors-profileAction: #1E1E1E;
+  --rk-colors-profileActionHover: #2A2A2A;
+  --rk-colors-profileForeground: #111111;
+  --rk-colors-selectedOptionBorder: #D4AF37;
+  --rk-colors-downloadBottomCardBackground: #0A0A0A;
+  --rk-colors-downloadTopCardBackground: #111111;
+  --rk-colors-connectionIndicator: #10B981;
+  --rk-colors-error: #EF4444;
+  --rk-colors-generalBorder: #1E1E1E;
+  --rk-colors-generalBorderDim: #0A0A0A;
+  --rk-colors-menuItemBackground: #1E1E1E;
+  --rk-colors-standby: #F59E0B;
+  
+  --rk-radii-actionButton: 12px;
+  --rk-radii-connectButton: 12px;
+  --rk-radii-menuButton: 12px;
+  --rk-radii-modal: 16px;
+  --rk-radii-modalMobile: 16px;
+  
+  --rk-fonts-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+  
+  --rk-blurs-modalOverlay: blur(8px);
+}
+
+[data-rk] button[data-rk] {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+[data-rk] button[data-rk]:hover {
+  transform: translateY(-1px);
+}
+
+[data-rk] button[data-rk]:active {
+  transform: scale(0.98);
+}
+
+[data-rk] [role="menuitem"]:hover {
+  background-color: #1E1E1E;
+  border-color: rgba(212, 175, 55, 0.3);
+}
+
+[data-rk] [data-rk-account-button] {
+  background: linear-gradient(135deg, #D4AF37 0%, #B8941F 100%);
+  color: #0A0A0A;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+}
+
+[data-rk] [data-rk-account-button]:hover {
+  box-shadow: 0 6px 16px rgba(212, 175, 55, 0.3);
+  transform: translateY(-1px);
+}
+
+[data-rk] [data-rk-chain-button] {
+  background: #111111;
+  border: 1px solid #1E1E1E;
+  color: #E5E5E5;
+}
+
+[data-rk] [data-rk-chain-button]:hover {
+  border-color: rgba(212, 175, 55, 0.5);
+  background: #1E1E1E;
+}
+
+@media (max-width: 640px) {
+  [data-rk] [data-rk-modal] {
+    max-width: calc(100vw - 32px) !important;
+    margin: 16px;
+  }
+  
+  [data-rk] .iekbcc0 {
+    max-width: calc(100vw - 32px) !important;
+  }
+}
+
+[data-rk] [data-rk-modal] {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+[data-rk] button[data-rk]:has([data-rk-chain-button][data-unsupported]) {
+  background: #EF4444;
+  color: white;
+}
+
+[data-rk] [data-rk-loading] {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========================================
+   RESPONSIVE ENHANCEMENTS & 2026 BEST PRACTICES
+   ======================================== */
+
+/* Better container constraints */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .container {
+    max-width: 1536px;
+  }
+}
+
+/* Enhanced card styles with proper padding */
+.card {
+  @apply bg-dark-card border border-dark-border rounded-xl p-6;
+  min-width: 0; /* Prevent overflow */
+  overflow: hidden;
+}
+
+/* Card glow effect for interactive elements */
+.card-glow {
+  @apply bg-dark-card border border-dark-border rounded-xl p-6;
+  min-width: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.card-glow:hover {
+  @apply border-gold/30 shadow-lg shadow-gold/10;
+}
+
+/* Touch-friendly input fields */
+.input-field {
+  @apply w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-dark-text;
+  @apply focus:outline-none focus:ring-2 focus:ring-gold/50 focus:border-gold;
+  @apply transition-all duration-200;
+  min-height: 44px; /* Touch-friendly */
+}
+
+.input-field::placeholder {
+  @apply text-dark-muted;
+}
+
+/* Better aspect ratio handling */
+.aspect-square {
+  aspect-ratio: 1 / 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Responsive text that never breaks */
+h1, h2, h3, h4, h5, h6, p {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Touch-friendly buttons on mobile */
+@media (max-width: 639px) {
+  .btn-primary,
+  .btn-secondary {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 0.9375rem;
+  }
+
+  /* Ensure proper spacing in mobile containers */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Reduce grid gaps on mobile */
+  .grid {
+    gap: 1rem !important;
+  }
+
+  /* Make cards more compact on mobile */
+  .card, .card-glow {
+    padding: 1rem;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .card, .card-glow {
+    padding: 1.25rem;
+  }
+}
+
+/* Ensure proper image sizing */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Fix modal positioning on all devices */
+@media (max-width: 639px) {
+  .fixed {
+    position: fixed !important;
+  }
+
+  /* Ensure modals are scrollable */
+  .modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
+
+/* Better hover states (only on devices with hover capability) */
+@media (hover: hover) {
+  .card:hover {
+    @apply border-gold/20;
+  }
+
+  button:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+
+  a:hover {
+    @apply text-gold;
+  }
+}
+
+/* Improve focus visibility for accessibility (WCAG 2.1) */
+*:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip to main content link for accessibility */
+.skip-to-main {
+  @apply absolute -top-full left-4 bg-gold text-dark-bg px-6 py-3 rounded-lg font-semibold;
+  @apply focus:top-4 transition-all z-50;
+}
+
+/* Loading skeleton animations */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--dark-border) 0%,
+    var(--dark-card) 50%,
+    var(--dark-border) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+  border-radius: 0.5rem;
+}
+
+/* Tooltip styles */
+.tooltip {
+  @apply absolute hidden group-hover:block bg-dark-card border border-dark-border rounded-lg p-3 shadow-xl z-50;
+  @apply text-sm text-dark-text;
+  animation: tooltipFadeIn 0.2s ease;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Microinteraction: Pulse effect */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Progress bar animation */
+@keyframes progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.progress-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
+  animation: progress 1.5s ease-in-out infinite;
+}
+
+/* Badge styles */
+.badge {
+  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold;
+}
+
+/* Stats card enhancement */
+.stat-card {
+  @apply card-glow text-center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent transition on layout changes */
+* {
+  transition-property: none;
+}
+
+*:where(:hover, :focus-visible) {
+  transition-property: background-color, border-color, color, fill, stroke, transform;
+  transition-duration: 200ms;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card {
+    @apply border-2;
+  }
+
+  .btn-primary, .btn-secondary {
+    @apply border-2;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode already default - ensure consistency */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+  }
+}
