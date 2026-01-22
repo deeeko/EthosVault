@@ -3,11 +3,15 @@ import { cookies } from 'next/headers';
 
 export interface SessionData {
   nonce?: string;
+  address?: string;
+  chainId?: number;
+  isAuthenticated?: boolean;
+  isLoggedIn?: boolean;
+  ethosVerified?: string;
   siwe?: {
     address: string;
     chainId: number;
   };
-  isLoggedIn: boolean;
 }
 
 const sessionOptions = {
