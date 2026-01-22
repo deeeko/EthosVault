@@ -3,7 +3,7 @@
 import { LoanListing } from '@/lib/types';
 import { formatEth } from '@/lib/types';
 import Image from 'next/image';
-import ScoreBadge from './ScoreBadge';
+import { ScoreBadge } from './ScoreBadge';
 import { Clock, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -32,7 +32,7 @@ export default function ListingCard({ listing, onViewDetails }: ListingCardProps
           />
           {/* Score Badge Overlay */}
           <div className="absolute top-2 right-2">
-            <ScoreBadge score={listing.lender.score} size="sm" showValue={true} />
+            <ScoreBadge score={listing.lender.score} size="sm" showLabel={true} />
           </div>
         </div>
 
@@ -64,7 +64,7 @@ export default function ListingCard({ listing, onViewDetails }: ListingCardProps
               <Zap className="w-3.5 h-3.5" />
               <span>Lender</span>
             </div>
-            <ScoreBadge score={listing.lender.score} size="sm" showValue={false} />
+            <ScoreBadge score={listing.lender.score} size="sm" showLabel={false} />
           </div>
 
           <button
