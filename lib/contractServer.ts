@@ -5,31 +5,65 @@
  * Uses viem for type-safe contract interactions
  */
 
-import { createPublicClient, http, type Address } from 'viem';
+import { createPublicClient, http, type Address, type PublicClient } from 'viem';
 import { base, baseSepolia } from 'viem/chains';
 import { ETHOS_VAULT_ABI } from './abis/ethosVault';
 
-// Determine which chain we're on
-const chainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
-const isTestnet = chainId === 84532;
+let _publicClient: PublicClient | null = null;
+let _chainId: number | null = null;
+let _contractAddress: Address | null = null;
 
-// Select chain and RPC
-const chain = isTestnet ? baseSepolia : base;
-const rpcUrl = isTestnet
-  ? process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL
-  : process.env.NEXT_PUBLIC_ALCHEMY_BASE_MAINNET_RPC;
+/**
+ * Get or create public client (lazy initialization)
+ */
+function getPublicClient(): PublicClient {
+  if (_publicClient) return _publicClient;
 
-// Create public client for reading contract data
-export const publicClient = createPublicClient({
-  chain,
-  transport: rpcUrl ? http(rpcUrl) : http(),
-});
+  // Determine which chain we're on
+  const chainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
+  const isTestnet = chainId === 84532;
 
-// Contract address from environment
-const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '') as Address;
+  // Select chain and RPC
+  const chain = isTestnet ? baseSepolia : base;
+  const rpcUrl = isTestnet
+    ? process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL
+    : process.env.NEXT_PUBLIC_ALCHEMY_BASE_MAINNET_RPC;
 
-if (!CONTRACT_ADDRESS) {
-  console.warn('[Contract] Warning: NEXT_PUBLIC_CONTRACT_ADDRESS not set');
+  _publicClient = createPublicClient({
+    chain,
+    transport: rpcUrl ? http(rpcUrl) : http(),
+  });
+
+  _chainId = chainId;
+
+  return _publicClient;
+}
+
+/**
+ * Get contract address from environment
+ */
+function getContractAddress(): Address {
+  if (_contractAddress) return _contractAddress;
+
+  const address = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '';
+  if (!address) {
+    throw new Error('NEXT_PUBLIC_CONTRACT_ADDRESS environment variable not set');
+  }
+
+  _contractAddress = address as Address;
+  return _contractAddress;
+}
+
+/**
+ * Export chain info
+ */
+export function getChainId() {
+  return parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
+}
+
+export function getChain() {
+  const id = getChainId();
+  return id === 84532 ? baseSepolia : base;
 }
 
 /**
@@ -37,8 +71,11 @@ if (!CONTRACT_ADDRESS) {
  */
 export async function getAllListingsFromContract() {
   try {
-    const listings = await publicClient.readContract({
-      address: CONTRACT_ADDRESS,
+    const client = getPublicClient();
+    const address = getContractAddress();
+
+    const listings = await client.readContract({
+      address,
       abi: ETHOS_VAULT_ABI,
       functionName: 'getAllListings',
     });
@@ -55,8 +92,8 @@ export async function getAllListingsFromContract() {
  */
 export async function getListingById(listingId: bigint) {
   try {
-    const listing = await publicClient.readContract({
-      address: CONTRACT_ADDRESS,
+    const listing = await getPublicClient().readContract({
+      address: getContractAddress(),
       abi: ETHOS_VAULT_ABI,
       functionName: 'listings',
       args: [listingId],
@@ -74,8 +111,8 @@ export async function getListingById(listingId: bigint) {
  */
 export async function getLoanById(loanId: bigint) {
   try {
-    const loan = await publicClient.readContract({
-      address: CONTRACT_ADDRESS,
+    const loan = await getPublicClient().readContract({
+      address: getContractAddress(),
       abi: ETHOS_VAULT_ABI,
       functionName: 'loans',
       args: [loanId],
@@ -93,8 +130,8 @@ export async function getLoanById(loanId: bigint) {
  */
 export async function getListingCounter() {
   try {
-    const counter = await publicClient.readContract({
-      address: CONTRACT_ADDRESS,
+    const counter = await getPublicClient().readContract({
+      address: getContractAddress(),
       abi: ETHOS_VAULT_ABI,
       functionName: 'listingCounter',
     });
@@ -111,8 +148,8 @@ export async function getListingCounter() {
  */
 export async function getLoanCounter() {
   try {
-    const counter = await publicClient.readContract({
-      address: CONTRACT_ADDRESS,
+    const counter = await getPublicClient().readContract({
+      address: getContractAddress(),
       abi: ETHOS_VAULT_ABI,
       functionName: 'loanCounter',
     });
@@ -129,8 +166,8 @@ export async function getLoanCounter() {
  */
 export async function calculateCollateralFromScore(score: bigint) {
   try {
-    const bps = await publicClient.readContract({
-      address: CONTRACT_ADDRESS,
+    const bps = await getPublicClient().readContract({
+      address: getContractAddress(),
       abi: ETHOS_VAULT_ABI,
       functionName: 'collateralBpsFromScore',
       args: [score],
@@ -148,8 +185,8 @@ export async function calculateCollateralFromScore(score: bigint) {
  */
 export async function getContractEvents(eventName: string, fromBlock?: bigint) {
   try {
-    const logs = await publicClient.getContractEvents({
-      address: CONTRACT_ADDRESS,
+    const logs = await getPublicClient().getContractEvents({
+      address: getContractAddress(),
       abi: ETHOS_VAULT_ABI,
       eventName: eventName as any,
       fromBlock: fromBlock || 'earliest',
@@ -162,5 +199,3 @@ export async function getContractEvents(eventName: string, fromBlock?: bigint) {
     return [];
   }
 }
-
-export { CONTRACT_ADDRESS, chain, chainId };
