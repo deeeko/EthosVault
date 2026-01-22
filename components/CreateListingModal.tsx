@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, CheckCircle, RefreshCw, Lock, TrendingUp } from 'lucide-react';
 import { formatEth } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useApproveNFT, useListNFT } from '@/hooks';
+import { toast } from 'sonner';
 
 interface CreateListingModalProps {
   isOpen: boolean;
@@ -22,30 +24,88 @@ interface CreateListingModalProps {
 }
 
 export function CreateListingModal({ isOpen, onClose, listing, onSuccess }: CreateListingModalProps) {
-  const [listingStep, setListingStep] = useState<'confirm' | 'processing' | 'success'>('confirm');
-  
-  const estimatedCollateral = listing.floorPrice * 0.7 * (listing.minBorrowerScore < 800 ? 0.7 : 
+  const [listingStep, setListingStep] = useState<'confirm' | 'approving' | 'listing' | 'success'>('confirm');
+
+  const estimatedCollateral = listing.floorPrice * 0.7 * (listing.minBorrowerScore < 800 ? 0.7 :
                                listing.minBorrowerScore < 1200 ? 0.6 :
                                listing.minBorrowerScore < 1600 ? 0.5 :
                                listing.minBorrowerScore < 2000 ? 0.4 :
                                listing.minBorrowerScore < 2400 ? 0.35 : 0.3);
 
-  const handleCreateListing = () => {
-    setListingStep('processing');
-    
-    // Simulate transaction
-    setTimeout(() => {
+  // TODO: Replace with actual NFT contract address from your wallet
+  // For now, using placeholder - you'll get this from user's connected wallet NFT data
+  const nftContractAddress = '0x0000000000000000000000000000000000000000' as `0x${string}`;
+  const tokenId = BigInt(listing.nftId);
+
+  // Approval hook
+  const {
+    approveNFT,
+    isPending: isApproving,
+    isConfirming: isConfirmingApproval,
+    isSuccess: isApproved,
+  } = useApproveNFT(
+    () => {
+      toast.success('NFT approved!');
+      setListingStep('listing');
+      // After approval, automatically proceed to listing
+      handleListNFT();
+    },
+    (error) => {
+      toast.error(`Approval failed: ${error.message}`);
+      setListingStep('confirm');
+    }
+  );
+
+  // Listing hook
+  const {
+    listNFT,
+    isPending: isListing,
+    isConfirming: isConfirmingList,
+    isSuccess: isListed,
+  } = useListNFT(
+    () => {
+      toast.success('NFT listed successfully!');
       setListingStep('success');
+      // Auto-close after 3 seconds
       setTimeout(() => {
         onSuccess?.();
         handleClose();
       }, 3000);
-    }, 3000);
+    },
+    (error) => {
+      toast.error(`Listing failed: ${error.message}`);
+      setListingStep('confirm');
+    }
+  );
+
+  // Handle the approval and listing flow
+  const handleCreateListing = async () => {
+    try {
+      setListingStep('approving');
+      await approveNFT(nftContractAddress, tokenId);
+      // After approval succeeds, handleListNFT will be called automatically via success callback
+    } catch (error) {
+      console.error('Transaction error:', error);
+      setListingStep('confirm');
+    }
+  };
+
+  // Handle listing (called automatically after approval succeeds)
+  const handleListNFT = async () => {
+    try {
+      await listNFT(nftContractAddress, tokenId);
+    } catch (error) {
+      console.error('Listing error:', error);
+      setListingStep('confirm');
+    }
   };
 
   const handleClose = () => {
-    setListingStep('confirm');
-    onClose();
+    // Only allow close if not in middle of transaction
+    if (!isApproving && !isConfirmingApproval && !isListing && !isConfirmingList) {
+      setListingStep('confirm');
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -167,14 +227,18 @@ export function CreateListingModal({ isOpen, onClose, listing, onSuccess }: Crea
             </>
           )}
 
-          {listingStep === 'processing' && (
+          {(listingStep === 'approving' || listingStep === 'listing') && (
             <div className="p-12 text-center">
               <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center">
                 <RefreshCw size={32} className="text-gold animate-spin" />
               </div>
-              <h3 className="text-xl font-bold mb-3">Creating Listing...</h3>
+              <h3 className="text-xl font-bold mb-3">
+                {listingStep === 'approving' ? 'Approving NFT...' : 'Creating Listing...'}
+              </h3>
               <p className="text-sm text-dark-muted">
-                Approving NFT transfer and creating your listing
+                {listingStep === 'approving'
+                  ? 'Please approve the NFT in your wallet'
+                  : 'Confirm the listing transaction in your wallet'}
               </p>
             </div>
           )}
