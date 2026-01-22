@@ -62,24 +62,9 @@ export default function MarketplacePage() {
     );
   }
 
-  // Show error state
+  // Log error but don't block UI - show mock data instead
   if (isError) {
-    return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl">
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <div className="card p-8 text-center max-w-md">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
-              <X size={32} className="text-red-500" />
-            </div>
-            <h3 className="text-xl font-bold mb-2">Failed to load listings</h3>
-            <p className="text-dark-muted mb-4 text-sm">{error?.message || 'Unknown error'}</p>
-            <button onClick={() => refetch()} className="btn-primary">
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    console.warn('Contract error (showing mock data):', error);
   }
 
   return (
@@ -93,11 +78,15 @@ export default function MarketplacePage() {
             </h1>
             <p className="text-sm sm:text-base text-dark-muted mt-1">
               Browse and borrow NFTs from trusted lenders
-              {contractListings && contractListings.length > 0 && (
+              {contractListings && contractListings.length > 0 ? (
                 <span className="ml-2 text-xs bg-gold/20 text-gold px-2 py-0.5 rounded-full">
                   Live Data
                 </span>
-              )}
+              ) : isError ? (
+                <span className="ml-2 text-xs bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded-full">
+                  Demo Mode (Contract Not Deployed)
+                </span>
+              ) : null}
             </p>
           </div>
 

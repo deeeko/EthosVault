@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, ChevronRight, Info } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, ChevronRight, Info, Loader2, RefreshCw } from 'lucide-react';
 import { MOCK_USER_NFTS, getScoreLevel, calculateCollateral } from '@/lib/constants';
 import { formatEth } from '@/lib/utils';
 import { RightsTooltip } from '@/components/RightsTooltip';
 import { CreateListingModal } from '@/components/CreateListingModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useUserNFTs } from '@/hooks';
+import { useAccount } from 'wagmi';
 
 const STEPS = [
   { id: 1, title: 'Select NFT', description: 'Choose an NFT from your wallet to list' },
@@ -15,8 +17,11 @@ const STEPS = [
 ];
 
 export default function LendPage() {
+  const { isConnected } = useAccount();
+  const { nfts: userNFTs, isLoading: loadingNFTs, error: nftError, refetch } = useUserNFTs();
+
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedNFT, setSelectedNFT] = useState<typeof MOCK_USER_NFTS[0] | null>(null);
+  const [selectedNFT, setSelectedNFT] = useState<any>(null);
   const [showListingModal, setShowListingModal] = useState(false);
   const [terms, setTerms] = useState({
     duration: 7,
@@ -25,6 +30,17 @@ export default function LendPage() {
     collateralMultiplier: 1,
     airdropSplit: 0,
   });
+
+  // Use user's actual NFTs if available, otherwise fallback to mock
+  const displayNFTs = userNFTs.length > 0 ? userNFTs.map((nft, idx) => ({
+    id: idx + 1,
+    nftId: parseInt(nft.tokenId),
+    collection: nft.collection,
+    name: nft.name,
+    image: nft.image,
+    floorPrice: nft.floorPrice || 0.5,
+    contractAddress: nft.contractAddress,
+  })) : MOCK_USER_NFTS;
 
   const canProceed = () => {
     if (currentStep === 1) return selectedNFT !== null;
@@ -123,11 +139,31 @@ export default function LendPage() {
                 </h2>
                 <p className="text-sm sm:text-base text-dark-muted">
                   Your NFT will be safely locked in escrow while listed
+                  {userNFTs.length > 0 && (
+                    <span className="ml-2 text-xs bg-gold/20 text-gold px-2 py-0.5 rounded-full">
+                      {userNFTs.length} NFTs Found
+                    </span>
+                  )}
+                  {nftError && (
+                    <span className="ml-2 text-xs bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded-full">
+                      Demo Mode
+                    </span>
+                  )}
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 max-w-5xl mx-auto">
-                {MOCK_USER_NFTS.map((nft) => (
+              {/* Loading state */}
+              {loadingNFTs && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 size={48} className="text-gold animate-spin mb-4" />
+                  <p className="text-dark-muted">Loading your NFTs...</p>
+                </div>
+              )}
+
+              {/* NFT Grid */}
+              {!loadingNFTs && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 max-w-5xl mx-auto">
+                  {displayNFTs.map((nft) => (
                   <motion.div
                     key={nft.id}
                     whileHover={{ scale: 1.02 }}
@@ -139,19 +175,27 @@ export default function LendPage() {
                         : ''
                     }`}
                   >
-                    {/* NFT Image Placeholder */}
+                    {/* NFT Image */}
                     <div className="w-full aspect-square bg-gradient-to-br from-dark-border to-dark-bg rounded-xl mb-4 flex items-center justify-center overflow-hidden">
-                      <div className="text-center p-4">
-                        <div className="text-6xl sm:text-7xl mb-3">🖼️</div>
-                        <div className="text-xs sm:text-sm text-dark-muted font-mono">#{nft.nftId}</div>
-                      </div>
+                      {nft.image ? (
+                        <img
+                          src={nft.image}
+                          alt={nft.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center p-4">
+                          <div className="text-6xl sm:text-7xl mb-3">🖼️</div>
+                          <div className="text-xs sm:text-sm text-dark-muted font-mono">#{nft.nftId}</div>
+                        </div>
+                      )}
                     </div>
 
                     {/* NFT Info */}
                     <div className="space-y-3">
                       <div>
                         <h3 className="font-semibold text-base sm:text-lg text-dark-text truncate">
-                          {nft.collection} #{nft.nftId}
+                          {nft.name || `${nft.collection} #${nft.nftId}`}
                         </h3>
                         <p className="text-xs sm:text-sm text-dark-muted truncate">{nft.collection}</p>
                       </div>
@@ -175,8 +219,20 @@ export default function LendPage() {
                       </motion.div>
                     )}
                   </motion.div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!loadingNFTs && displayNFTs.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-dark-muted mb-4">No NFTs found in your wallet</p>
+                  <button onClick={refetch} className="btn-secondary inline-flex items-center gap-2">
+                    <RefreshCw size={16} />
+                    Refresh
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
 

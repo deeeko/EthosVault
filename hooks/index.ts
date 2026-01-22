@@ -46,3 +46,7 @@ export type {
   LoanRepaidEvent,
   LoanLiquidatedEvent,
 } from './useContractEvents';
+
+// User NFTs hook
+export { useUserNFTs } from './useUserNFTs';
+export type { UserNFT } from './useUserNFTs';

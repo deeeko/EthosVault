@@ -23,6 +23,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "siwe": "^3.0.0",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^2.1.0",
     "viem": "^2.7.0",
     "wagmi": "^2.5.0"

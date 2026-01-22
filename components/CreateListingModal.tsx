@@ -19,6 +19,7 @@ interface CreateListingModalProps {
     minBorrowerScore: number;
     collateralMultiplier: number;
     airdropSplit: number;
+    contractAddress?: string;
   };
   onSuccess?: () => void;
 }
@@ -32,9 +33,8 @@ export function CreateListingModal({ isOpen, onClose, listing, onSuccess }: Crea
                                listing.minBorrowerScore < 2000 ? 0.4 :
                                listing.minBorrowerScore < 2400 ? 0.35 : 0.3);
 
-  // TODO: Replace with actual NFT contract address from your wallet
-  // For now, using placeholder - you'll get this from user's connected wallet NFT data
-  const nftContractAddress = '0x0000000000000000000000000000000000000000' as `0x${string}`;
+  // Use NFT contract address from listing if available, otherwise placeholder
+  const nftContractAddress = (listing.contractAddress || '0x0000000000000000000000000000000000000000') as `0x${string}`;
   const tokenId = BigInt(listing.nftId);
 
   // Approval hook
@@ -47,8 +47,6 @@ export function CreateListingModal({ isOpen, onClose, listing, onSuccess }: Crea
     () => {
       toast.success('NFT approved!');
       setListingStep('listing');
-      // After approval, automatically proceed to listing
-      handleListNFT();
     },
     (error) => {
       toast.error(`Approval failed: ${error.message}`);
@@ -78,12 +76,18 @@ export function CreateListingModal({ isOpen, onClose, listing, onSuccess }: Crea
     }
   );
 
+  // Use effect to automatically proceed to listing after approval succeeds
+  useEffect(() => {
+    if (isApproved && listingStep === 'listing') {
+      handleListNFT();
+    }
+  }, [isApproved, listingStep]);
+
   // Handle the approval and listing flow
   const handleCreateListing = async () => {
     try {
       setListingStep('approving');
       await approveNFT(nftContractAddress, tokenId);
-      // After approval succeeds, handleListNFT will be called automatically via success callback
     } catch (error) {
       console.error('Transaction error:', error);
       setListingStep('confirm');
