@@ -8,6 +8,8 @@ export interface SessionData {
   isAuthenticated?: boolean;
   isLoggedIn?: boolean;
   ethosVerified?: string;
+  ethosScore?: number;
+  ethosProfileId?: number;
   siwe?: {
     address: string;
     chainId: number;

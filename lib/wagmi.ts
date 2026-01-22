@@ -2,39 +2,55 @@
 
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { base, baseSepolia } from 'wagmi/chains';
-import { http } from 'wagmi';
+import { http } from 'viem';
 
-// Ensure project ID is set - using the one from .env.local
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '0c3e872b65f2fc8f860f94b6dd9fbba9';
+// WalletConnect Project ID (required for RainbowKit)
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
-if (!projectId || projectId === '') {
-  console.warn('⚠️ WalletConnect Project ID is missing! Get one at https://cloud.walletconnect.com');
+if (!projectId) {
+  console.error('❌ WalletConnect Project ID is missing! Add NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to .env.local');
 }
 
-// Alchemy RPC URLs
-const alchemyBaseSepoliaRpc = process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL;
-const alchemyBaseMainnetRpc = process.env.NEXT_PUBLIC_ALCHEMY_BASE_MAINNET_RPC;
+// Alchemy RPC URLs (from .env.local)
+const alchemySepolia = process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL;       // Base Sepolia
+const alchemyMainnet = process.env.NEXT_PUBLIC_ALCHEMY_BASE_MAINNET_RPC; // Base Mainnet
 
-// Determine which chain we're using based on NEXT_PUBLIC_CHAIN_ID
-const chainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
-const isTestnet = chainId === 84532; // Base Sepolia
+// Determine chain from env (default to Base Mainnet if missing)
+const chainIdEnv = process.env.NEXT_PUBLIC_CHAIN_ID || '8453';
+const chainId = parseInt(chainIdEnv, 10);
 
+const isTestnet = chainId === 84532;
+
+// Select the active chain
+const activeChain = isTestnet ? baseSepolia : base;
+
+// Select the correct RPC URL
+const activeRpc = isTestnet ? alchemySepolia : alchemyMainnet;
+
+if (!activeRpc) {
+  console.warn(
+    `⚠️ No Alchemy RPC URL found for ${isTestnet ? 'Base Sepolia' : 'Base Mainnet'}. ` +
+    `Using public fallback (may be slow/rate-limited). ` +
+    `Add NEXT_PUBLIC_ALCHEMY_RPC_URL (or NEXT_PUBLIC_ALCHEMY_BASE_MAINNET_RPC) to .env.local`
+  );
+}
+
+// Export the wagmi + RainbowKit config
 export const config = getDefaultConfig({
   appName: 'EthosVault',
-  projectId,
-  chains: [base, baseSepolia],
+  projectId: projectId || '0c3e872b65f2fc8f860f94b6dd9fbba9', // fallback if missing
+  chains: [activeChain], // only the active one to avoid confusion
   transports: {
-    // Use Alchemy RPC if available, otherwise fallback to default
-    [base.id]: alchemyBaseMainnetRpc ? http(alchemyBaseMainnetRpc) : http(),
-    [baseSepolia.id]: alchemyBaseSepoliaRpc ? http(alchemyBaseSepoliaRpc) : http(),
+    [activeChain.id]: activeRpc ? http(activeRpc) : http(),
   },
   ssr: true,
-  // Disable WalletConnect relay to avoid WebSocket errors
-  // Use HTTP fallback instead
 });
 
-// Log which RPC we're using
+// Optional debug log (visible in browser console)
 if (typeof window !== 'undefined') {
-  console.log('🔗 Network:', isTestnet ? 'Base Sepolia Testnet' : 'Base Mainnet');
-  console.log('🔗 RPC Provider:', alchemyBaseSepoliaRpc || alchemyBaseMainnetRpc ? 'Alchemy' : 'Default');
+  console.log(
+    `🔗 Connected to: ${isTestnet ? 'Base Sepolia (testnet)' : 'Base Mainnet'}`,
+    `\n🔗 Chain ID: ${activeChain.id}`,
+    `\n🔗 RPC: ${activeRpc ? 'Alchemy' : 'Public fallback'}`
+  );
 }

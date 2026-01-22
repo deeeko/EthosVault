@@ -13,6 +13,8 @@ export async function GET() {
       address: session.address,
       chainId: session.chainId,
       isAuthenticated: true,
+      ethosScore: session.ethosScore || 0,
+      ethosProfileId: session.ethosProfileId || 0,
     });
   } catch (error) {
     return NextResponse.json({ error: 'Session error' }, { status: 500 });
