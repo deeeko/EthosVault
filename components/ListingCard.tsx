@@ -32,7 +32,7 @@ export default function ListingCard({ listing, onViewDetails }: ListingCardProps
           />
           {/* Score Badge Overlay */}
           <div className="absolute top-2 right-2">
-            <ScoreBadge score={listing.lender.score} size="sm" showLabel={true} />
+            <ScoreBadge score={listing.lender.score.value} size="sm" showLabel={true} />
           </div>
         </div>
 
@@ -64,7 +64,7 @@ export default function ListingCard({ listing, onViewDetails }: ListingCardProps
               <Zap className="w-3.5 h-3.5" />
               <span>Lender</span>
             </div>
-            <ScoreBadge score={listing.lender.score} size="sm" showLabel={false} />
+            <ScoreBadge score={listing.lender.score.value} size="sm" showLabel={false} />
           </div>
 
           <button
