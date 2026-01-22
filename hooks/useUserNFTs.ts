@@ -54,21 +54,24 @@ export function useUserNFTs() {
       const alchemyKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
       if (alchemyKey) {
         const alchemyNetwork = isTestnet ? 'base-sepolia' : 'base-mainnet';
-        const alchemyUrl = `https://${alchemyNetwork}.g.alchemy.com/nft/v3/${alchemyKey}/getNFTsForOwner?owner=${address}&withMetadata=true`;
+        // Correct Alchemy v2 endpoint format
+        const alchemyUrl = `https://${alchemyNetwork}.g.alchemy.com/v2/${alchemyKey}/getNFTs/?owner=${address}&withMetadata=true`;
 
-        console.log('🔍 Fetching NFTs from Alchemy:', alchemyNetwork);
+        console.log('🔍 Fetching NFTs from Alchemy:', alchemyNetwork, address);
 
         const alchemyResponse = await fetch(alchemyUrl);
 
         if (alchemyResponse.ok) {
           const alchemyData = await alchemyResponse.json();
+          console.log('📦 Alchemy response:', alchemyData);
+
           const parsedNFTs: UserNFT[] = alchemyData.ownedNfts?.map((nft: any) => ({
             contractAddress: nft.contract.address,
-            tokenId: nft.tokenId,
-            name: nft.name || nft.title || `${nft.contract.name} #${nft.tokenId}`,
+            tokenId: nft.id?.tokenId || nft.tokenId,
+            name: nft.title || nft.name || `${nft.contract.name || 'NFT'} #${nft.id?.tokenId || nft.tokenId}`,
             collection: nft.contract.name || 'Unknown Collection',
-            image: nft.image?.cachedUrl || nft.image?.originalUrl || nft.media?.[0]?.gateway || '',
-            floorPrice: nft.contract?.openSeaMetadata?.floorPrice || 0.5,
+            image: nft.metadata?.image || nft.media?.[0]?.gateway || nft.media?.[0]?.raw || '',
+            floorPrice: nft.contract?.openSea?.floorPrice || 0.5,
             chain: isTestnet ? 'base-sepolia' : 'base',
           })) || [];
 
@@ -76,7 +79,8 @@ export function useUserNFTs() {
           setNfts(parsedNFTs);
           return;
         } else {
-          console.warn('Alchemy API error:', await alchemyResponse.text());
+          const errorText = await alchemyResponse.text();
+          console.warn('❌ Alchemy API error:', alchemyResponse.status, errorText);
         }
       }
 
