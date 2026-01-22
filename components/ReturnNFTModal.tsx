@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { X, AlertCircle, CheckCircle, RefreshCw, TrendingUp } from 'lucide-react';
 import { formatEth } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRepayLoan } from '@/hooks';
+import { toast } from 'sonner';
 
 interface ReturnNFTModalProps {
   isOpen: boolean;
@@ -15,34 +17,70 @@ interface ReturnNFTModalProps {
     rentalFee: number;
     returnDate: string;
     daysRemaining: number;
+    loanId?: bigint; // Add optional loanId for contract integration
   };
   onSuccess?: () => void;
 }
 
 export function ReturnNFTModal({ isOpen, onClose, nft, onSuccess }: ReturnNFTModalProps) {
   const [returnStep, setReturnStep] = useState<'confirm' | 'processing' | 'success'>('confirm');
-  
+
   const isLate = nft.daysRemaining < 0;
   const lateFee = isLate ? nft.rentalFee * 0.1 : 0; // 10% late fee
   const scoreBoost = isLate ? -10 : 50; // -10 for late, +50 for on-time
   const totalRefund = nft.collateral - lateFee;
 
-  const handleReturn = () => {
-    setReturnStep('processing');
-    
-    // Simulate transaction
-    setTimeout(() => {
+  // Repay loan hook
+  const {
+    repayLoan,
+    isPending,
+    isConfirming,
+    isSuccess,
+  } = useRepayLoan(
+    () => {
+      toast.success('NFT returned! Collateral refunded.');
       setReturnStep('success');
+      // Auto-close after 3 seconds
       setTimeout(() => {
         onSuccess?.();
-        onClose();
+        handleClose();
       }, 3000);
-    }, 3000);
+    },
+    (error) => {
+      toast.error(`Return failed: ${error.message}`);
+      setReturnStep('confirm');
+    }
+  );
+
+  const handleReturn = async () => {
+    setReturnStep('processing');
+
+    // If we have a loanId from the contract, use it
+    if (nft.loanId) {
+      try {
+        await repayLoan(nft.loanId);
+      } catch (error) {
+        console.error('Repay error:', error);
+        setReturnStep('confirm');
+      }
+    } else {
+      // Fallback to mock behavior for demo
+      setTimeout(() => {
+        setReturnStep('success');
+        setTimeout(() => {
+          onSuccess?.();
+          handleClose();
+        }, 3000);
+      }, 3000);
+    }
   };
 
   const handleClose = () => {
-    setReturnStep('confirm');
-    onClose();
+    // Only allow close if not in middle of transaction
+    if (!isPending && !isConfirming) {
+      setReturnStep('confirm');
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
