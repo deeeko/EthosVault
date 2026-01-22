@@ -45,64 +45,75 @@ export function useUserNFTs() {
     setIsLoading(true);
     setError(null);
 
+    // Determine which network we're on
+    const chainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '8453');
+    const isTestnet = chainId === 84532;
+
     try {
-      // Try Simplehash API first (free tier available)
-      const response = await fetch(
-        `https://api.simplehash.com/api/v0/nfts/owners?chains=base&wallet_addresses=${address}&limit=50`,
-        {
-          headers: {
-            'X-API-KEY': process.env.NEXT_PUBLIC_SIMPLEHASH_API_KEY || '',
-          },
-        }
-      );
+      // Try Alchemy first (since you have the API key configured)
+      const alchemyKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
+      if (alchemyKey) {
+        const alchemyNetwork = isTestnet ? 'base-sepolia' : 'base-mainnet';
+        const alchemyUrl = `https://${alchemyNetwork}.g.alchemy.com/nft/v3/${alchemyKey}/getNFTsForOwner?owner=${address}&withMetadata=true`;
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch NFTs from Simplehash');
+        console.log('🔍 Fetching NFTs from Alchemy:', alchemyNetwork);
+
+        const alchemyResponse = await fetch(alchemyUrl);
+
+        if (alchemyResponse.ok) {
+          const alchemyData = await alchemyResponse.json();
+          const parsedNFTs: UserNFT[] = alchemyData.ownedNfts?.map((nft: any) => ({
+            contractAddress: nft.contract.address,
+            tokenId: nft.tokenId,
+            name: nft.name || nft.title || `${nft.contract.name} #${nft.tokenId}`,
+            collection: nft.contract.name || 'Unknown Collection',
+            image: nft.image?.cachedUrl || nft.image?.originalUrl || nft.media?.[0]?.gateway || '',
+            floorPrice: nft.contract?.openSeaMetadata?.floorPrice || 0.5,
+            chain: isTestnet ? 'base-sepolia' : 'base',
+          })) || [];
+
+          console.log('✅ Found', parsedNFTs.length, 'NFTs via Alchemy');
+          setNfts(parsedNFTs);
+          return;
+        } else {
+          console.warn('Alchemy API error:', await alchemyResponse.text());
+        }
       }
 
-      const data = await response.json();
-
-      const parsedNFTs: UserNFT[] = data.nfts?.map((nft: any) => ({
-        contractAddress: nft.contract_address,
-        tokenId: nft.token_id,
-        name: nft.name || `${nft.collection?.name || 'Unknown'} #${nft.token_id}`,
-        collection: nft.collection?.name || 'Unknown Collection',
-        image: nft.image_url || nft.previews?.image_medium_url || '',
-        floorPrice: nft.collection?.floor_prices?.[0]?.value,
-        chain: 'base',
-      })) || [];
-
-      setNfts(parsedNFTs);
-    } catch (err) {
-      console.warn('Simplehash API failed, falling back to mock data:', err);
-
-      // Fallback: Try Alchemy
-      try {
-        const alchemyKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
-        if (alchemyKey) {
-          const alchemyResponse = await fetch(
-            `https://base-mainnet.g.alchemy.com/nft/v3/${alchemyKey}/getNFTsForOwner?owner=${address}&withMetadata=true`,
-          );
-
-          if (alchemyResponse.ok) {
-            const alchemyData = await alchemyResponse.json();
-            const parsedNFTs: UserNFT[] = alchemyData.ownedNfts?.map((nft: any) => ({
-              contractAddress: nft.contract.address,
-              tokenId: nft.tokenId,
-              name: nft.name || `${nft.contract.name} #${nft.tokenId}`,
-              collection: nft.contract.name || 'Unknown Collection',
-              image: nft.image?.cachedUrl || nft.image?.originalUrl || '',
-              floorPrice: undefined,
-              chain: 'base',
-            })) || [];
-
-            setNfts(parsedNFTs);
-            return;
+      // Fallback: Try Simplehash (if configured)
+      const simplehashKey = process.env.NEXT_PUBLIC_SIMPLEHASH_API_KEY;
+      if (simplehashKey) {
+        const chain = isTestnet ? 'base-sepolia' : 'base';
+        const response = await fetch(
+          `https://api.simplehash.com/api/v0/nfts/owners?chains=${chain}&wallet_addresses=${address}&limit=50`,
+          {
+            headers: {
+              'X-API-KEY': simplehashKey,
+            },
           }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const parsedNFTs: UserNFT[] = data.nfts?.map((nft: any) => ({
+            contractAddress: nft.contract_address,
+            tokenId: nft.token_id,
+            name: nft.name || `${nft.collection?.name || 'Unknown'} #${nft.token_id}`,
+            collection: nft.collection?.name || 'Unknown Collection',
+            image: nft.image_url || nft.previews?.image_medium_url || '',
+            floorPrice: nft.collection?.floor_prices?.[0]?.value,
+            chain: chain,
+          })) || [];
+
+          console.log('✅ Found', parsedNFTs.length, 'NFTs via Simplehash');
+          setNfts(parsedNFTs);
+          return;
         }
-      } catch (alchemyErr) {
-        console.warn('Alchemy API also failed:', alchemyErr);
       }
+
+      throw new Error('No NFT APIs configured or all failed');
+    } catch (err) {
+      console.warn('All NFT APIs failed, showing demo data:', err);
 
       // Final fallback: Show empty state or mock NFTs for demo
       setError(new Error('Unable to fetch NFTs. Please configure NFT API keys in .env.local'));
