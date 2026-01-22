@@ -9,6 +9,9 @@ import { RightsTooltip } from '@/components/RightsTooltip';
 import { formatEth, formatDate } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRequestLoan, useCalculateCollateralAmount } from '@/hooks';
+import { parseEther } from 'viem';
+import { toast } from 'sonner';
 
 export default function MarketplaceItemPage() {
   const params = useParams();
@@ -40,6 +43,29 @@ export default function MarketplaceItemPage() {
   const userLevel = getScoreLevel(MOCK_USER.score);
   const meetsMinScore = MOCK_USER.score >= listing.minBorrowerScore;
 
+  // Calculate collateral using contract hook
+  const { collateralAmount, collateralEth } = useCalculateCollateralAmount(
+    listing.floorPrice,
+    MOCK_USER.score
+  );
+
+  // Request loan hook
+  const {
+    requestLoan,
+    isPending,
+    isConfirming,
+    isSuccess,
+  } = useRequestLoan(
+    () => {
+      toast.success('Loan requested! NFT wrapper minted.');
+      setBorrowStep('success');
+    },
+    (error) => {
+      toast.error(`Request failed: ${error.message}`);
+      setBorrowStep('confirm');
+    }
+  );
+
   const handleBorrowClick = () => {
     if (!meetsMinScore) {
       alert('Your Ethos score does not meet the minimum requirement for this listing.');
@@ -48,13 +74,30 @@ export default function MarketplaceItemPage() {
     setBorrowStep('confirm');
   };
 
-  const handleConfirmBorrow = () => {
+  const handleConfirmBorrow = async () => {
     setBorrowStep('processing');
 
-    // Simulate transaction processing
-    setTimeout(() => {
-      setBorrowStep('success');
-    }, 3000);
+    // Use real contract if collateralAmount is available
+    if (collateralAmount) {
+      try {
+        // TODO: Replace with actual listing ID from contract
+        const listingId = BigInt(listing.id);
+        await requestLoan(
+          listingId,
+          MOCK_USER.score,
+          parseEther(listing.floorPrice.toString()),
+          collateralAmount
+        );
+      } catch (error) {
+        console.error('Loan request error:', error);
+        setBorrowStep('confirm');
+      }
+    } else {
+      // Fallback to mock behavior for demo
+      setTimeout(() => {
+        setBorrowStep('success');
+      }, 3000);
+    }
   };
 
   const handleViewDashboard = () => {
@@ -296,15 +339,17 @@ export default function MarketplaceItemPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setBorrowStep('details')}
+                disabled={isPending || isConfirming}
                 className="flex-1 btn-secondary"
               >
                 Go Back
               </button>
               <button
                 onClick={handleConfirmBorrow}
+                disabled={isPending || isConfirming}
                 className="flex-1 btn-primary"
               >
-                Confirm & Pay
+                {isPending ? 'Signing Transaction...' : isConfirming ? 'Confirming...' : 'Confirm & Pay'}
               </button>
             </div>
           </div>
