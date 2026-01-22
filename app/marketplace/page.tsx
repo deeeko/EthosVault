@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, SlidersHorizontal, X, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, SlidersHorizontal, X, Loader2, RefreshCw } from 'lucide-react';
 import { NFTCard } from '@/components/NFTCard';
 import { MOCK_LISTINGS } from '@/lib/constants';
 import { motion } from 'framer-motion';
-import { useGetAllListings } from '@/hooks';
+import { useGetAllListings, useWatchNFTListed } from '@/hooks';
+import { toast } from 'sonner';
+import { fetchMultipleNFTMetadata, type NFTMetadata } from '@/lib/nftMetadata';
 
 export default function MarketplacePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,24 +15,72 @@ export default function MarketplacePage() {
   const [maxRentalFee, setMaxRentalFee] = useState(10);
   const [maxDuration, setMaxDuration] = useState(90);
   const [showFilters, setShowFilters] = useState(false);
+  const [newListingsCount, setNewListingsCount] = useState(0);
+  const [nftMetadata, setNftMetadata] = useState<Map<string, NFTMetadata>>(new Map());
+  const [fetchingMetadata, setFetchingMetadata] = useState(false);
 
   // Fetch real listings from contract
   const { listings: contractListings, isLoading, isError, error, refetch } = useGetAllListings();
 
+  // Fetch NFT metadata when contract listings change
+  useEffect(() => {
+    if (contractListings && contractListings.length > 0) {
+      setFetchingMetadata(true);
+
+      const nftsToFetch = contractListings.map(listing => ({
+        contractAddress: listing.nft,
+        tokenId: listing.tokenId,
+      }));
+
+      fetchMultipleNFTMetadata(nftsToFetch)
+        .then(metadata => {
+          setNftMetadata(metadata);
+          console.log('✅ Fetched metadata for', metadata.size, 'NFTs');
+        })
+        .catch(err => {
+          console.error('Failed to fetch NFT metadata:', err);
+        })
+        .finally(() => {
+          setFetchingMetadata(false);
+        });
+    }
+  }, [contractListings]);
+
+  // Listen for new NFT listings in real-time
+  useWatchNFTListed((event) => {
+    console.log('🔔 New NFT listed!', event);
+    toast.success(`New NFT listed: ${event.args.nft}`, {
+      description: `Token ID: ${event.args.tokenId.toString()}`,
+      action: {
+        label: 'View',
+        onClick: () => refetch(),
+      },
+    });
+    setNewListingsCount(prev => prev + 1);
+    // Auto-refresh listings after 2 seconds
+    setTimeout(() => refetch(), 2000);
+  });
+
   // Use contract listings if available, otherwise fallback to mock data
   const allListings = contractListings && contractListings.length > 0
-    ? contractListings.map((listing, index) => ({
-        id: index + 1,
-        nftId: Number(listing.tokenId),
-        collection: listing.nft, // Contract address
-        imageUrl: '', // We'll need to fetch from NFT metadata
-        rentalFee: 0.5, // TODO: Get from contract or metadata
-        duration: 7, // TODO: Get from contract
-        lenderScore: 1800, // TODO: Get from Ethos API using listing.lender
-        floorPrice: 1.5, // TODO: Get from NFT floor price API
-        lender: listing.lender,
-        available: listing.available,
-      }))
+    ? contractListings.map((listing, index) => {
+        const metadataKey = `${listing.nft}-${listing.tokenId}`;
+        const metadata = nftMetadata.get(metadataKey);
+
+        return {
+          id: index + 1,
+          nftId: Number(listing.tokenId),
+          collection: metadata?.collection || listing.nft.slice(0, 10) + '...',
+          name: metadata?.name || `NFT #${listing.tokenId}`,
+          imageUrl: metadata?.image || '',
+          rentalFee: 0.5, // TODO: Get from contract
+          duration: 7, // TODO: Get from contract
+          lenderScore: 1800, // TODO: Get from Ethos API using listing.lender
+          floorPrice: metadata?.floorPrice || 0.5,
+          lender: listing.lender,
+          available: listing.available,
+        };
+      })
     : MOCK_LISTINGS;
 
   const filteredListings = allListings.filter(listing => {
@@ -72,23 +122,44 @@ export default function MarketplacePage() {
       {/* Header */}
       <div className="mb-6 sm:mb-8 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-display font-bold text-dark-text">
               NFT <span className="text-gradient">Marketplace</span>
             </h1>
-            <p className="text-sm sm:text-base text-dark-muted mt-1">
-              Browse and borrow NFTs from trusted lenders
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm sm:text-base text-dark-muted">
+                Browse and borrow NFTs from trusted lenders
+              </p>
               {contractListings && contractListings.length > 0 ? (
-                <span className="ml-2 text-xs bg-gold/20 text-gold px-2 py-0.5 rounded-full">
-                  Live Data
+                <span className="text-xs bg-gold/20 text-gold px-2 py-0.5 rounded-full whitespace-nowrap">
+                  🟢 Live ({contractListings.length})
                 </span>
               ) : isError ? (
-                <span className="ml-2 text-xs bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded-full">
-                  Demo Mode (Contract Not Deployed)
+                <span className="text-xs bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  Demo Mode
                 </span>
               ) : null}
-            </p>
+            </div>
           </div>
+
+          {/* Refresh Button */}
+          <button
+            onClick={() => {
+              refetch();
+              setNewListingsCount(0);
+              toast.success('Refreshing listings...');
+            }}
+            className="btn-secondary flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+            Refresh
+            {newListingsCount > 0 && (
+              <span className="bg-gold text-dark-bg rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                {newListingsCount}
+              </span>
+            )}
+          </button>
 
           <button
             onClick={() => setShowFilters(!showFilters)}
