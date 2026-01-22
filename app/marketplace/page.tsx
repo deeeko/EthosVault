@@ -18,9 +18,27 @@ export default function MarketplacePage() {
   const [newListingsCount, setNewListingsCount] = useState(0);
   const [nftMetadata, setNftMetadata] = useState<Map<string, NFTMetadata>>(new Map());
   const [fetchingMetadata, setFetchingMetadata] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [notifiedListings, setNotifiedListings] = useState<Set<string>>(new Set());
 
   // Fetch real listings from contract
   const { listings: contractListings, isLoading, isError, error, refetch } = useGetAllListings();
+
+  // Debug: Log contract state
+  useEffect(() => {
+    console.log('📊 Marketplace Contract State:', {
+      isLoading,
+      isError,
+      errorMessage: error?.message,
+      contractAddress: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS,
+      listingsCount: contractListings?.length || 0,
+      hasListings: contractListings && contractListings.length > 0,
+    });
+
+    if (contractListings && contractListings.length > 0) {
+      console.log('📋 Contract Listings:', contractListings);
+    }
+  }, [contractListings, isLoading, isError, error]);
 
   // Fetch NFT metadata when contract listings change
   useEffect(() => {
@@ -46,20 +64,40 @@ export default function MarketplacePage() {
     }
   }, [contractListings]);
 
-  // Listen for new NFT listings in real-time
+  // Listen for new NFT listings in real-time (only show toast ONCE per listing)
   useWatchNFTListed((event) => {
-    console.log('🔔 New NFT listed!', event);
-    toast.success(`New NFT listed: ${event.args.nft}`, {
-      description: `Token ID: ${event.args.tokenId.toString()}`,
-      action: {
-        label: 'View',
-        onClick: () => refetch(),
-      },
-    });
-    setNewListingsCount(prev => prev + 1);
-    // Auto-refresh listings after 2 seconds
-    setTimeout(() => refetch(), 2000);
+    const listingKey = `${event.args.nft}-${event.args.tokenId}`;
+
+    // Only show notification if we haven't seen this listing before
+    if (!notifiedListings.has(listingKey)) {
+      console.log('🔔 New NFT listed!', event);
+      toast.success('New NFT Listed!', {
+        description: `${event.args.nft.slice(0, 6)}...${event.args.nft.slice(-4)} #${event.args.tokenId.toString()}`,
+        action: {
+          label: 'View Now',
+          onClick: () => handleManualRefresh(),
+        },
+      });
+
+      // Mark this listing as notified
+      setNotifiedListings(prev => new Set(prev).add(listingKey));
+      setNewListingsCount(prev => prev + 1);
+
+      // Auto-refresh after 2 seconds
+      setTimeout(() => {
+        refetch();
+      }, 2000);
+    }
   });
+
+  // Manual refresh handler
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    setNewListingsCount(0);
+    await refetch();
+    toast.success('Refreshed listings');
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
 
   // Use contract listings if available, otherwise fallback to mock data
   const allListings = contractListings && contractListings.length > 0
@@ -144,17 +182,13 @@ export default function MarketplacePage() {
 
           {/* Refresh Button */}
           <button
-            onClick={() => {
-              refetch();
-              setNewListingsCount(0);
-              toast.success('Refreshing listings...');
-            }}
+            onClick={handleManualRefresh}
             className="btn-secondary flex items-center gap-2"
-            disabled={isLoading}
+            disabled={isLoading || isRefreshing}
           >
-            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-            Refresh
-            {newListingsCount > 0 && (
+            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            {newListingsCount > 0 && !isRefreshing && (
               <span className="bg-gold text-dark-bg rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
                 {newListingsCount}
               </span>

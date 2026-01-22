@@ -29,6 +29,8 @@ export const config = getDefaultConfig({
     [baseSepolia.id]: alchemyBaseSepoliaRpc ? http(alchemyBaseSepoliaRpc) : http(),
   },
   ssr: true,
+  // Disable WalletConnect relay to avoid WebSocket errors
+  // Use HTTP fallback instead
 });
 
 // Log which RPC we're using
