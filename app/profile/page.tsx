@@ -9,6 +9,8 @@ import { motion } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useEthos } from '@/hooks/useEthos';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
+import { useWatchUserActivity } from '@/hooks';
+import { formatEther } from 'viem';
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
@@ -21,6 +23,9 @@ export default function ProfilePage() {
   const userName = ethosProfile?.displayName || ethosProfile?.username || null;
   const userLevel = getScoreLevel(userScore);
   const scorePercentage = (userScore / MAX_ETHOS_SCORE) * 100;
+
+  // Listen for real-time contract activity
+  const { activity: contractActivity } = useWatchUserActivity(address);
 
   // Show loading state while fetching Ethos profile
   if (loading && isConnected) {
@@ -291,15 +296,28 @@ export default function ProfilePage() {
             </h3>
 
             <div className="space-y-4">
-              {MOCK_ACTIVITY.length > 0 ? (
+              {/* Use contract activity if available, otherwise fallback to mock */}
+              {(contractActivity && contractActivity.length > 0 ? contractActivity : MOCK_ACTIVITY).length > 0 ? (
                 <>
-                  {MOCK_ACTIVITY.map((activity, index) => {
+                  {(contractActivity && contractActivity.length > 0 ? contractActivity : MOCK_ACTIVITY).map((activity, index) => {
+                    // Map contract event types to UI types
+                    const eventTypeMap: Record<string, 'list' | 'borrow' | 'return'> = {
+                      'listed': 'list',
+                      'requested': 'borrow',
+                      'repaid': 'return',
+                      'liquidated': 'borrow',
+                    };
+
+                    const activityType = 'type' in activity
+                      ? (activity.type as 'list' | 'borrow' | 'return')
+                      : eventTypeMap[activity.type as keyof typeof eventTypeMap] || 'list';
+
                     const icons = {
                       return: ArrowUp,
                       list: Plus,
                       borrow: ArrowDown,
                     };
-                    const Icon = icons[activity.type as keyof typeof icons];
+                    const Icon = icons[activityType];
 
                     const colors = {
                       return: 'text-ethos-exemplary',
@@ -312,36 +330,77 @@ export default function ProfilePage() {
                       borrow: 'bg-ethos-reputable/10',
                     };
 
+                    // Generate title and subtitle based on activity type
+                    let title = '';
+                    let subtitle = '';
+                    let scoreChange = 0;
+                    let timestamp = '';
+
+                    if ('type' in activity) {
+                      // Mock activity format
+                      title = activity.title;
+                      subtitle = activity.subtitle;
+                      scoreChange = activity.scoreChange;
+                      timestamp = activity.timestamp;
+                    } else {
+                      // Contract activity format
+                      const data = activity.data as any;
+                      timestamp = activity.timestamp.toLocaleString();
+
+                      switch (activity.type) {
+                        case 'listed':
+                          title = 'Listed NFT for Lending';
+                          subtitle = `Token ID: ${data.tokenId?.toString() || 'N/A'}`;
+                          scoreChange = 0;
+                          break;
+                        case 'requested':
+                          title = 'Requested Loan';
+                          subtitle = `Collateral: ${data.collateral ? formatEther(data.collateral) : 'N/A'} ETH`;
+                          scoreChange = 0;
+                          break;
+                        case 'repaid':
+                          title = 'Repaid Loan';
+                          subtitle = `Loan #${data.loanId?.toString() || 'N/A'}`;
+                          scoreChange = 50; // Ethos score boost
+                          break;
+                        case 'liquidated':
+                          title = 'Loan Liquidated';
+                          subtitle = `Loan #${data.loanId?.toString() || 'N/A'}`;
+                          scoreChange = -50; // Penalty
+                          break;
+                      }
+                    }
+
                     return (
                       <motion.div
-                        key={activity.id}
+                        key={'id' in activity ? activity.id : index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.1 * index }}
                         className="flex items-center gap-4 p-4 bg-dark-bg rounded-lg border border-dark-border hover:border-gold/30 transition-colors"
                       >
                         {/* Icon */}
-                        <div className={`w-10 h-10 rounded-lg ${bgColors[activity.type as keyof typeof bgColors]} flex items-center justify-center flex-shrink-0`}>
-                          <Icon size={20} className={colors[activity.type as keyof typeof colors]} />
+                        <div className={`w-10 h-10 rounded-lg ${bgColors[activityType]} flex items-center justify-center flex-shrink-0`}>
+                          <Icon size={20} className={colors[activityType]} />
                         </div>
 
                         {/* Details */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-dark-text">{activity.title}</h4>
-                          <p className="text-sm text-dark-muted">{activity.subtitle}</p>
+                          <h4 className="font-medium text-dark-text">{title}</h4>
+                          <p className="text-sm text-dark-muted">{subtitle}</p>
                         </div>
 
                         {/* Score Change & Time */}
                         <div className="flex items-center gap-4 flex-shrink-0">
-                          {activity.scoreChange !== 0 && (
+                          {scoreChange !== 0 && (
                             <div className={`flex items-center gap-1 font-semibold ${
-                              activity.scoreChange > 0 ? 'text-ethos-exemplary' : 'text-ethos-untrusted'
+                              scoreChange > 0 ? 'text-ethos-exemplary' : 'text-ethos-untrusted'
                             }`}>
-                              {activity.scoreChange > 0 ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-                              {Math.abs(activity.scoreChange)}
+                              {scoreChange > 0 ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                              {Math.abs(scoreChange)}
                             </div>
                           )}
-                          <span className="text-xs text-dark-muted">{activity.timestamp}</span>
+                          <span className="text-xs text-dark-muted">{timestamp}</span>
                         </div>
                       </motion.div>
                     );
