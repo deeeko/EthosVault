@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Loader2 } from 'lucide-react';
 import { NFTCard } from '@/components/NFTCard';
 import { MOCK_LISTINGS } from '@/lib/constants';
 import { motion } from 'framer-motion';
+import { useGetAllListings } from '@/hooks';
 
 export default function MarketplacePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,7 +14,26 @@ export default function MarketplacePage() {
   const [maxDuration, setMaxDuration] = useState(90);
   const [showFilters, setShowFilters] = useState(false);
 
-  const filteredListings = MOCK_LISTINGS.filter(listing => {
+  // Fetch real listings from contract
+  const { listings: contractListings, isLoading, isError, error, refetch } = useGetAllListings();
+
+  // Use contract listings if available, otherwise fallback to mock data
+  const allListings = contractListings && contractListings.length > 0
+    ? contractListings.map((listing, index) => ({
+        id: index + 1,
+        nftId: Number(listing.tokenId),
+        collection: listing.nft, // Contract address
+        imageUrl: '', // We'll need to fetch from NFT metadata
+        rentalFee: 0.5, // TODO: Get from contract or metadata
+        duration: 7, // TODO: Get from contract
+        lenderScore: 1800, // TODO: Get from Ethos API using listing.lender
+        floorPrice: 1.5, // TODO: Get from NFT floor price API
+        lender: listing.lender,
+        available: listing.available,
+      }))
+    : MOCK_LISTINGS;
+
+  const filteredListings = allListings.filter(listing => {
     const matchesSearch = listing.collection.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          listing.nftId.toString().includes(searchQuery);
     const matchesScore = listing.lenderScore >= minScore;
@@ -30,6 +50,38 @@ export default function MarketplacePage() {
     setSearchQuery('');
   };
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl">
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader2 size={48} className="text-gold animate-spin mb-4" />
+          <p className="text-dark-muted">Loading marketplace listings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (isError) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl">
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <div className="card p-8 text-center max-w-md">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
+              <X size={32} className="text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Failed to load listings</h3>
+            <p className="text-dark-muted mb-4 text-sm">{error?.message || 'Unknown error'}</p>
+            <button onClick={() => refetch()} className="btn-primary">
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl">
       {/* Header */}
@@ -41,6 +93,11 @@ export default function MarketplacePage() {
             </h1>
             <p className="text-sm sm:text-base text-dark-muted mt-1">
               Browse and borrow NFTs from trusted lenders
+              {contractListings && contractListings.length > 0 && (
+                <span className="ml-2 text-xs bg-gold/20 text-gold px-2 py-0.5 rounded-full">
+                  Live Data
+                </span>
+              )}
             </p>
           </div>
 
@@ -156,15 +213,21 @@ export default function MarketplacePage() {
               <h4 className="font-medium text-sm mb-3 text-dark-text">Marketplace Stats</h4>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-dark-muted">Total Listings</span>
-                <span className="font-semibold text-dark-text">6</span>
+                <span className="font-semibold text-dark-text">
+                  {contractListings?.length || allListings.length}
+                </span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-dark-muted">Avg Fee</span>
-                <span className="font-semibold text-gold">0.58 ETH</span>
+                <span className="font-semibold text-gold">
+                  {(allListings.reduce((acc, l) => acc + l.rentalFee, 0) / allListings.length).toFixed(2)} ETH
+                </span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-dark-muted">Active Loans</span>
-                <span className="font-semibold text-ethos-exemplary">247</span>
+                <span className="text-dark-muted">Available Now</span>
+                <span className="font-semibold text-ethos-exemplary">
+                  {contractListings?.filter(l => l.available).length || allListings.length}
+                </span>
               </div>
             </div>
           </div>
